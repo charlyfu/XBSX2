@@ -33,6 +33,8 @@
 #include "pcsx2/ImGui/FullscreenUI.h"
 #include "pcsx2/ImGui/ImGuiFullscreen.h"
 #include "pcsx2/GameList.h"
+#include "TranslationsTable_es.h"
+#include <unordered_map>
 
 #ifdef ENABLE_ACHIEVEMENTS
 #include "pcsx2/Achievements.h"
@@ -606,16 +608,25 @@ std::optional<WindowInfo> WinRTHost::GetPlatformWindowInfo()
 	return wi;
 }
 
-s32 Host::Internal::GetTranslatedStringImpl(
-	const std::string_view context, const std::string_view msg, char* tbuf, size_t tbuf_space)
-{
-	if (msg.size() > tbuf_space)
-		return -1;
-	else if (msg.empty())
-		return 0;
+namespace { struct ContextSourceHash { size_t operator()(const std::pair<std::string_view, std::string_view>& key) 
+const { return std::hash<std::string_view>()(key.first) ^ (std::hash<std::string_view>()(key.second) << 1); } }; 
+using TranslationMap = std::unordered_map<std::pair<std::string_view, std::string_view>, std::string_view, ContextSourceHash>; 
+const TranslationMap& GetTranslationMap() { static const TranslationMap s_map = []() { TranslationMap map; map.reserve(g_translation_table_size); 
+for (const auto& entry : g_translation_table) map.emplace(std::make_pair(entry.context, entry.source), entry.translation); 
+return map; }(); return s_map; } } // namespace
 
-	std::memcpy(tbuf, msg.data(), msg.size());
-	return static_cast<s32>(msg.size());
+
+s32 Host::Internal::GetTranslatedStringImpl(const std::string_view context, const std::string_view msg, char* tbuf, size_t tbuf_space)
+{
+	const TranslationMap& map = GetTranslationMap();
+	const auto it = map.find(std::make_pair(context, msg));
+	const std::string_view result = (it != map.end()) ? it->second : msg;
+	if (result.size() > tbuf_space)
+		return -1;
+	else if (result.empty())
+		return 0;
+	std::memcpy(tbuf, result.data(), result.size());
+	return static_cast<s32>(result.size());
 }
 
 std::string Host::TranslatePluralToString(const char* context, const char* msg, const char* disambiguation, int count)
