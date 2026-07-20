@@ -172,6 +172,8 @@ namespace Host
 
 		/// Implementation to retrieve a translated string.
 		s32 GetTranslatedStringImpl(const std::string_view context, const std::string_view msg, char* tbuf, size_t tbuf_space);
+
+		void SetTranslationLanguage(std::string_view language); 
 	} // namespace Internal
 } // namespace Host
 

@@ -956,6 +956,7 @@ bool FullscreenUI::Initialize()
 		return false;
 
 	ImGuiFullscreen::SetTheme(Host::GetBaseStringSettingValue("UI", "FullscreenUITheme", "Dark"));
+	Host::Internal::SetTranslationLanguage(Host::GetBaseStringSettingValue("UI", "FullscreenUILanguage", "en"));
 	ImGuiFullscreen::UpdateLayoutScale();
 	ImGuiFullscreen::UpdateFontScale();
 	ApplyLayoutSettings();
@@ -1018,6 +1019,7 @@ void FullscreenUI::CheckForConfigChanges(const Pcsx2Config& old_config)
 		return;
 
 	ImGuiFullscreen::SetTheme(Host::GetBaseStringSettingValue("UI", "FullscreenUITheme", "Dark"));
+	Host::Internal::SetTranslationLanguage(Host::GetBaseStringSettingValue("UI", "FullscreenUILanguage", "en"));
 
 	MTGS::RunOnGSThread([]() {
 		LoadCustomBackground();
@@ -4178,6 +4180,17 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 		"AMOLED",
 	};
 
+	static constexpr const char* s_language_name[] = {
+		FSUI_NSTR("English"),
+		FSUI_NSTR("Español"),
+		FSUI_NSTR("Español (Latinoamérica)"),
+	};
+	static constexpr const char* s_language_value[] = {
+		"en",
+		"es",
+		"es-419",
+	};
+
 	SettingsInterface* bsi = GetEditingSettingsInterface();
 
 	BeginMenuButtons();
@@ -4186,6 +4199,8 @@ void FullscreenUI::DrawInterfaceSettingsPage()
 	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_PAINTBRUSH, "Theme"),
 		FSUI_CSTR("Selects the color style to be used for Big Picture Mode."),
 		"UI", "FullscreenUITheme", "Dark", s_theme_name, s_theme_value, std::size(s_theme_name), true);
+	DrawStringListSetting(bsi, FSUI_ICONSTR(ICON_FA_LANGUAGE, "Language"),
+		FSUI_CSTR("Selects the language to be used for the interface."), "UI", "FullscreenUILanguage", "en", s_language_name, s_language_value, std::size(s_language_name), true); 
 	DrawToggleSetting(
 		bsi, FSUI_ICONSTR(ICON_FA_LIST, "Default To Game List"), FSUI_CSTR("When Big Picture mode is started, the game list will be displayed instead of the main menu."), "UI", "FullscreenUIDefaultToGameList", false);
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_CIRCLE_INFO, "Use Save State Selector"),

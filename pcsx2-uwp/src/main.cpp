@@ -1,4 +1,4 @@
-#include "pcsx2/PrecompiledHeader.h"
+﻿#include "pcsx2/PrecompiledHeader.h"
 
 #include "UWPKeyboard.h"
 
@@ -34,7 +34,9 @@
 #include "pcsx2/ImGui/ImGuiFullscreen.h"
 #include "pcsx2/GameList.h"
 #include "TranslationsTable_es.h"
+#include "TranslationsTable_es419.h"
 #include <unordered_map>
+#include <atomic>
 
 #ifdef ENABLE_ACHIEVEMENTS
 #include "pcsx2/Achievements.h"
@@ -609,18 +611,46 @@ std::optional<WindowInfo> WinRTHost::GetPlatformWindowInfo()
 }
 
 namespace { struct ContextSourceHash { size_t operator()(const std::pair<std::string_view, std::string_view>& key) 
-const { return std::hash<std::string_view>()(key.first) ^ (std::hash<std::string_view>()(key.second) << 1); } }; 
-using TranslationMap = std::unordered_map<std::pair<std::string_view, std::string_view>, std::string_view, ContextSourceHash>; 
-const TranslationMap& GetTranslationMap() { static const TranslationMap s_map = []() { TranslationMap map; map.reserve(g_translation_table_size); 
-for (const auto& entry : g_translation_table) map.emplace(std::make_pair(entry.context, entry.source), entry.translation); 
-return map; }(); return s_map; } } // namespace
+	const { return std::hash<std::string_view>()(key.first) ^ (std::hash<std::string_view>()(key.second) << 1); } }; 
+	using TranslationMap = std::unordered_map<std::pair<std::string_view, std::string_view>, std::string_view, ContextSourceHash>; 
+	TranslationMap BuildMap(const TranslationEntry* table, size_t size) { TranslationMap map; map.reserve(size); 
+	for (size_t i = 0; i < size; ++i) map.emplace(std::make_pair(table[i].context, table[i].source), table[i].translation); // Strings que se agregaron en FullscreenUI.cpp y que Crowdin todavía no conoce: 
+	map.emplace(std::make_pair(std::string_view("FullscreenUI"), std::string_view("Language")), std::string_view("Idioma")); 
+	map.emplace(std::make_pair(std::string_view("FullscreenUI"), std::string_view("Selects the language to be used for the interface.")), std::string_view("Selecciona el idioma que se usará para la interfaz.")); 
+	return map; } 
+	const TranslationMap& GetSpanishMap() 
+	{ 
+		static const TranslationMap s_map = BuildMap(g_translation_table, g_translation_table_size); return s_map; 
+	} 
+	const TranslationMap& GetSpanishLatamMap() 
+	{ 
+		static const TranslationMap s_map = BuildMap(g_translation_table_es419, g_translation_table_size_es419); return s_map; 
+	} 
+	enum class ActiveLanguage : int { English = 0, SpanishES = 1, SpanishLatam = 2, }; std::atomic<int> s_active_language{static_cast<int>(ActiveLanguage::English)}; 
+} // namespace
 
+void Host::Internal::SetTranslationLanguage(std::string_view language)
+{
+	ActiveLanguage lang = ActiveLanguage::English;
+	if (language == "es")
+		lang = ActiveLanguage::SpanishES;
+	else if (language == "es-419")
+		lang = ActiveLanguage::SpanishLatam;
+	s_active_language.store(static_cast<int>(lang));
+	Host::ClearTranslationCache();
+}
 
 s32 Host::Internal::GetTranslatedStringImpl(const std::string_view context, const std::string_view msg, char* tbuf, size_t tbuf_space)
 {
-	const TranslationMap& map = GetTranslationMap();
-	const auto it = map.find(std::make_pair(context, msg));
-	const std::string_view result = (it != map.end()) ? it->second : msg;
+	std::string_view result = msg;
+	const ActiveLanguage lang = static_cast<ActiveLanguage>(s_active_language.load());
+	if (lang != ActiveLanguage::English)
+	{
+		const TranslationMap& map = (lang == ActiveLanguage::SpanishES) ? GetSpanishMap() : GetSpanishLatamMap();
+		const auto it = map.find(std::make_pair(context, msg));
+		if (it != map.end())
+			result = it->second;
+	}
 	if (result.size() > tbuf_space)
 		return -1;
 	else if (result.empty())

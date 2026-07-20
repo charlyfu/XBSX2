@@ -193,6 +193,11 @@ void Host::PumpMessagesOnCPUThread()
 {
 }
 
+void Host::Internal::SetTranslationLanguage(std::string_view language)
+{ 
+	// No aplica: Qt/gsrunner/tests manejan el idioma por su propio sistema (o no lo necesitan). 
+}
+
 s32 Host::Internal::GetTranslatedStringImpl(
 	const std::string_view context, const std::string_view msg, char* tbuf, size_t tbuf_space)
 {
