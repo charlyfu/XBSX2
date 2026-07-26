@@ -35,6 +35,8 @@
 #include "pcsx2/GameList.h"
 #include "TranslationsTable_es.h"
 #include "TranslationsTable_es419.h"
+#include <winrt/Windows.System.UserProfile.h> 
+#include <algorithm>
 #include <unordered_map>
 #include <atomic>
 
@@ -610,15 +612,41 @@ std::optional<WindowInfo> WinRTHost::GetPlatformWindowInfo()
 	return wi;
 }
 
-namespace { struct ContextSourceHash { size_t operator()(const std::pair<std::string_view, std::string_view>& key) 
+namespace 
+{ 
+	struct ContextSourceHash { size_t operator()(const std::pair<std::string_view, std::string_view>& key) 
 	const { return std::hash<std::string_view>()(key.first) ^ (std::hash<std::string_view>()(key.second) << 1); } }; 
 	using TranslationMap = std::unordered_map<std::pair<std::string_view, std::string_view>, std::string_view, ContextSourceHash>; 
 	TranslationMap BuildMap(const TranslationEntry* table, size_t size) { TranslationMap map; map.reserve(size); 
-	for (size_t i = 0; i < size; ++i) map.emplace(std::make_pair(table[i].context, table[i].source), table[i].translation); // Strings que se agregaron en FullscreenUI.cpp y que Crowdin todavía no conoce: 
+		for (size_t i = 0; i < size; ++i) 
+			map.emplace(std::make_pair(table[i].context, 
+				table[i].source), table[i].translation); 
+	
+	// Strings que se agregaron en FullscreenUI.cpp y que Crowdin todavía no conoce: 
 	map.emplace(std::make_pair(std::string_view("FullscreenUI"), std::string_view("Language")), std::string_view("Idioma")); 
 	map.emplace(std::make_pair(std::string_view("FullscreenUI"), std::string_view("Selects the language to be used for the interface.")), std::string_view("Selecciona el idioma que se usará para la interfaz.")); 
-	return map; } 
-	const TranslationMap& GetSpanishMap() 
+	map.emplace(std::make_pair(std::string_view("FullscreenUI"), std::string_view("Automatic (System Language)")), std::string_view("Automático (idioma del sistema)"));
+	return map; }
+
+	std::string DetectSystemLanguage() { using namespace winrt::Windows::System::UserProfile; 
+	const auto languages = GlobalizationPreferences::Languages(); 
+		if (languages.Size() == 0)
+			return "en";
+		// El primer idioma de la lista es el preferido por el usuario, en formato BCP-47 // (ej. "es-MX", "es-ES", "en-US"). 
+		std::wstring wide_tag(languages.GetAt(0).c_str()); 
+		std::string tag(wide_tag.begin(), wide_tag.end()); 
+		std::transform(tag.begin(), tag.end(), tag.begin(), [](unsigned char c) 
+			{ return static_cast<char>(std::tolower(c)); }); 
+				if (tag.rfind("es-es", 0) == 0) 
+					return "es"; 
+			// Español de España específicamente 
+			else if (tag.rfind("es", 0) == 0) 
+					return "es-419"; 
+			// Cualquier otra variante de español (México, Argentina, etc.) 
+			else return "en"; }
+
+	
+const TranslationMap& GetSpanishMap() 
 	{ 
 		static const TranslationMap s_map = BuildMap(g_translation_table, g_translation_table_size); return s_map; 
 	} 
@@ -631,10 +659,13 @@ namespace { struct ContextSourceHash { size_t operator()(const std::pair<std::st
 
 void Host::Internal::SetTranslationLanguage(std::string_view language)
 {
+	std::string resolved(language);
+	if (resolved == "auto")
+		resolved = DetectSystemLanguage();
 	ActiveLanguage lang = ActiveLanguage::English;
-	if (language == "es")
+	if (resolved == "es")
 		lang = ActiveLanguage::SpanishES;
-	else if (language == "es-419")
+	else if (resolved == "es-419")
 		lang = ActiveLanguage::SpanishLatam;
 	s_active_language.store(static_cast<int>(lang));
 	Host::ClearTranslationCache();
