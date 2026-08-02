@@ -6856,6 +6856,31 @@ void FullscreenUI::DrawPatchesOrCheatsSettingsPage(bool cheats)
 		}
 	}
 
+	if (!patch_list.empty())
+	{
+		if (MenuButton(FSUI_CSTR("Enable All"), FSUI_CSTR("Enables all patches/cheats for this game.")))
+		{
+			for (const Patch::PatchInfo& pi : patch_list)
+			{
+				if (std::find(enable_list.begin(), enable_list.end(), pi.name) == enable_list.end())
+				{
+					bsi->AddToStringList(section, Patch::PATCH_ENABLE_CONFIG_KEY, pi.name.c_str());
+					enable_list.push_back(pi.name);
+				}
+			}
+			SetSettingsChanged(bsi);
+		}
+
+		if (MenuButton(FSUI_CSTR("Disable All"), FSUI_CSTR("Disables all patches/cheats for this game.")))
+		{
+			for (const Patch::PatchInfo& pi : patch_list)
+				bsi->RemoveFromStringList(section, Patch::PATCH_ENABLE_CONFIG_KEY, pi.name.c_str());
+
+			enable_list.clear();
+			SetSettingsChanged(bsi);
+		}
+	}
+
 	for (const Patch::PatchInfo& pi : patch_list)
 	{
 		const auto enable_it = std::find(enable_list.begin(), enable_list.end(), pi.name);
