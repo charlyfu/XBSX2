@@ -8021,6 +8021,16 @@ void FullscreenUI::DrawGameListWindow()
 		QueueResetFocus(FocusResetType::WindowChanged);
 	}
 
+	else if (ImGui::IsKeyPressed(ImGuiKey_GamepadBack, false) || ImGui::IsKeyPressed(ImGuiKey_F4))
+	{
+		GameList::DownloadCovers(
+			{"https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/3d/${serial}.png"},
+			true, nullptr, [](const GameList::Entry*, std::string) {});
+		Host::RefreshGameListAsync(false);
+		InvalidateCoverCache();
+		ShowToast(std::string(), FSUI_STR("Cover download complete."));
+	}
+
 	switch (s_game_list_view)
 	{
 		case GameListView::Grid:
@@ -8053,6 +8063,7 @@ void FullscreenUI::DrawGameListWindow()
 			std::make_pair(ICON_PF_DPAD, FSUI_VSTR("Select Game")),
 			std::make_pair(ICON_PF_START, FSUI_VSTR("Settings")),
 			std::make_pair(swapNorthWest ? ICON_PF_BUTTON_SQUARE : ICON_PF_BUTTON_TRIANGLE, FSUI_VSTR("Change View")),
+			std::make_pair(ICON_PF_SELECT_SHARE, FSUI_VSTR("Download Covers")),
 			std::make_pair(swapNorthWest ? ICON_PF_BUTTON_TRIANGLE : ICON_PF_BUTTON_SQUARE, FSUI_VSTR("Launch Options")),
 			std::make_pair(circleOK ? ICON_PF_BUTTON_CIRCLE : ICON_PF_BUTTON_CROSS, FSUI_VSTR("Start Game")),
 			std::make_pair(circleOK ? ICON_PF_BUTTON_CROSS : ICON_PF_BUTTON_CIRCLE, FSUI_VSTR("Back")),
@@ -8064,6 +8075,7 @@ void FullscreenUI::DrawGameListWindow()
 			std::make_pair(ICON_PF_ARROW_UP ICON_PF_ARROW_DOWN ICON_PF_ARROW_LEFT ICON_PF_ARROW_RIGHT, FSUI_VSTR("Select Game")),
 			std::make_pair(ICON_PF_F1, FSUI_VSTR("Change View")),
 			std::make_pair(ICON_PF_F2, FSUI_VSTR("Settings")),
+			std::make_pair(ICON_PF_F4, FSUI_VSTR("Download Covers")),
 			std::make_pair(ICON_PF_F3, FSUI_VSTR("Launch Options")),
 			std::make_pair(ICON_PF_ENTER, FSUI_VSTR("Start Game")),
 			std::make_pair(ICON_PF_ESC, FSUI_VSTR("Back")),
@@ -8630,6 +8642,28 @@ void FullscreenUI::DrawGameListSettingsWindow()
 		{
 			Host::OnCoverDownloaderOpenRequested();
 		}
+		#else
+				if (MenuButton(
+						FSUI_ICONSTR(ICON_FA_DOWNLOAD, "Download Covers (2D)"), FSUI_CSTR("Downloads 2D covers from xlenore/ps2-covers.")))
+				{
+					GameList::DownloadCovers(
+						{"https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/${serial}.jpg"},
+						true, nullptr, [](const GameList::Entry*, std::string) {});
+					Host::RefreshGameListAsync(false);
+					InvalidateCoverCache();
+					ShowToast(std::string(), FSUI_STR("Cover download complete."));
+				}
+
+				if (MenuButton(
+						FSUI_ICONSTR(ICON_FA_DOWNLOAD, "Download Covers (3D)"), FSUI_CSTR("Downloads 3D covers from xlenore/ps2-covers.")))
+				{
+					GameList::DownloadCovers(
+						{"https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/3d/${serial}.png"},
+						true, nullptr, [](const GameList::Entry*, std::string) {});
+					Host::RefreshGameListAsync(false);
+					InvalidateCoverCache();
+					ShowToast(std::string(), FSUI_STR("Cover download complete."));
+				}
 #endif
 	}
 
